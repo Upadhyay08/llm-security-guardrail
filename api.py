@@ -9,7 +9,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = FastAPI(title="LLM Security Guardrail API", version="1.0.0")
 
 print("Loading Security Engines...")
-nlp = spacy.load("en_core_web_sm")
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    from spacy.cli import download
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
+
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 REGEX_RULES = {
