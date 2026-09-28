@@ -1,9 +1,9 @@
 import time
 import re
 import spacy
+import torch
 import streamlit as st
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoTokenizer, AutoModel
 
 st.set_page_config(
     page_title="LLM Security Guardrail",
@@ -96,9 +96,8 @@ code, stCode {
 
 st.markdown(VERCEL_CSS, unsafe_allow_html=True)
 
-# Cache Heavy Models so they load only ONCE into Streamlit memory
 @st.cache_resource
-def load_security_models():
+def load_models():
     try:
         nlp = spacy.load("en_core_web_sm")
     except OSError:
@@ -106,11 +105,19 @@ def load_security_models():
         download("en_core_web_sm")
         nlp = spacy.load("en_core_web_sm")
         
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    return nlp, embedding_model
+    tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+    model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+    return nlp, tokenizer, model
 
-with st.spinner("Initializing Security AI Engines..."):
-    nlp, embedding_model = load_security_models()
+with st.spinner("Initializing Lightweight Guardrail Pipeline..."):
+    nlp, tokenizer, embedding_model = load_models()
+
+def get_embedding(text_list):
+    inputs = tokenizer(text_list, padding=True, truncation=True, return_tensors="pt")
+    with torch.no_grad():
+        outputs = embedding_model(**inputs)
+    embeddings = outputs.last_hidden_state.mean(dim=1)
+    return torch.nn.functional.normalize(embeddings, p=2, dim=1)
 
 REGEX_RULES = {
     "AWS_KEY": r'\b(AKIA|ASIA)[A-Z0-9]{16}\b',
@@ -132,10 +139,10 @@ BLOCKED_INTENT_EXAMPLES = [
 ]
 
 @st.cache_data
-def get_blocked_embeddings():
-    return embedding_model.encode(BLOCKED_INTENT_EXAMPLES)
+def load_blocked_embeddings():
+    return get_embedding(BLOCKED_INTENT_EXAMPLES)
 
-BLOCKED_EMBEDDINGS = get_blocked_embeddings()
+BLOCKED_EMBEDDINGS = load_blocked_embeddings()
 
 def normalize_text(text: str) -> str:
     normalized = text
@@ -170,11 +177,11 @@ def run_layer2_ner(text: str) -> tuple[str, list]:
             clean_text = clean_text.replace(ent.text, f"[{ent.label_}_REDACTED]")
     return clean_text, flags
 
-def run_layer3_semantic_check(text: str, threshold: float = 0.40) -> tuple[bool, str, float]:
-    user_embedding = embedding_model.encode([text])
-    similarity_scores = cosine_similarity(user_embedding, BLOCKED_EMBEDDINGS)[0]
-    max_score = float(max(similarity_scores))
-    matched_index = similarity_scores.argmax()
+def run_layer3_semantic_check(text: str, threshold: float = 0.45) -> tuple[bool, str, float]:
+    user_emb = get_embedding([text])
+    similarity_scores = torch.mm(user_emb, BLOCKED_EMBEDDINGS.T)[0]
+    max_score = float(torch.max(similarity_scores))
+    matched_index = int(torch.argmax(similarity_scores))
     is_jailbreak = max_score >= threshold
     matched_pattern = BLOCKED_INTENT_EXAMPLES[matched_index] if is_jailbreak else None
     return is_jailbreak, matched_pattern, round(max_score, 4)
