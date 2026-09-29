@@ -1,3 +1,4 @@
 streamlit
 scikit-learn
 groq
+beautifulsoup4
