@@ -77,17 +77,8 @@ st.markdown("""
         font-weight: 600;
         border: 1px solid #e11d48;
     }
-    .badge-info {
-        background-color: #1e3a8a;
-        color: #60a5fa;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        border: 1px solid #2563eb;
-    }
 </style>
-""", unsafe_allow_shortcut=True)
+""", unsafe_allow_html=True)
 
 # --- Known Malicious Attack Corpus for Layer 2 ---
 MALICIOUS_PATTERNS = [
@@ -98,7 +89,7 @@ MALICIOUS_PATTERNS = [
 
 
 # ==========================================
-# RAG DOCUMENT & UNICODE SANITIZER
+# RAG DOCUMENT & UNICODE SANITIZER (LAYER 4)
 # ==========================================
 def sanitize_rag_and_unicode(text: str):
     modified = False
@@ -308,7 +299,7 @@ st.markdown("""
         Real-time multi-stage defense pipeline protecting LLMs against Jailbreaks, Data Leaks & Indirect Prompt Injections.
     </div>
 </div>
-""", unsafe_allow_shortcut=True)
+""", unsafe_allow_html=True)
 
 # Input Section
 st.subheader("📥 Prompt Inspection Console")
@@ -342,12 +333,12 @@ if inspect_btn:
             <div class="layer-card">
                 <h4>Layer 1: PII/PHI Redaction</h4>
             </div>
-            """, unsafe_allow_shortcut=True)
+            """, unsafe_allow_html=True)
             st.code(clean_text, language="text")
             if pii_detected:
-                st.markdown(f"<span class='badge-block'>Redacted: {', '.join(pii_detected)}</span>", unsafe_allow_shortcut=True)
+                st.markdown(f"<span class='badge-block'>Redacted: {', '.join(pii_detected)}</span>", unsafe_allow_html=True)
             else:
-                st.markdown("<span class='badge-pass'>Clean (No PII/PHI)</span>", unsafe_allow_shortcut=True)
+                st.markdown("<span class='badge-pass'>Clean (No PII/PHI)</span>", unsafe_allow_html=True)
 
         # --- LAYER 2 EXECUTION ---
         sim_score = layer2_check_similarity(clean_text)
@@ -356,21 +347,21 @@ if inspect_btn:
             <div class="layer-card">
                 <h4>Layer 2: Fast Vector Matching</h4>
             </div>
-            """, unsafe_allow_shortcut=True)
+            """, unsafe_allow_html=True)
             st.metric("TF-IDF Attack Vector Similarity Score", f"{sim_score:.3f}")
             if sim_score >= 0.65:
-                st.markdown("<span class='badge-block'>🚨 BLOCKED: Matches Malicious Attack Pattern</span>", unsafe_allow_shortcut=True)
+                st.markdown("<span class='badge-block'>🚨 BLOCKED: Matches Malicious Attack Pattern</span>", unsafe_allow_html=True)
             else:
-                st.markdown("<span class='badge-pass'>Passed (< 0.65 threshold)</span>", unsafe_allow_shortcut=True)
+                st.markdown("<span class='badge-pass'>Passed (< 0.65 threshold)</span>", unsafe_allow_html=True)
 
         # --- LAYER 3 EXECUTION ---
         if sim_score < 0.65:
-            st.markdown("<br>", unsafe_allow_shortcut=True)
+            st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("""
             <div class="layer-card">
                 <h4>Layer 3: Deep Semantic Intent Inspection (Groq Llama-3)</h4>
             </div>
-            """, unsafe_allow_shortcut=True)
+            """, unsafe_allow_html=True)
             
             with st.spinner("Running deep intent analysis via Llama-3..."):
                 intent_res = layer3_analyze_semantic_intent(clean_text, groq_api_key)
@@ -382,12 +373,12 @@ if inspect_btn:
                 st.success("✅ **PASSED Input Pipeline:** Cleared all input guardrails safely.")
                 
                 # --- LAYER 5 EXECUTION ---
-                st.markdown("<br>", unsafe_allow_shortcut=True)
+                st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown("""
                 <div class="layer-card">
                     <h4>Layer 5: Output Guardrail Verification</h4>
                 </div>
-                """, unsafe_allow_shortcut=True)
+                """, unsafe_allow_html=True)
                 
                 # Simulating LLM Output
                 simulated_llm_output = "Hello! Request processed securely. No API keys or sensitive records disclosed."
@@ -397,5 +388,5 @@ if inspect_btn:
                     st.warning(f"⚠️ **Layer 5 Leak Intercepted:** {', '.join(output_leaks)}")
                     st.code(safe_output, language="text")
                 else:
-                    st.markdown("<span class='badge-pass'>Output Verified Clean & Safe</span>", unsafe_allow_shortcut=True)
+                    st.markdown("<span class='badge-pass'>Output Verified Clean & Safe</span>", unsafe_allow_html=True)
                     st.code(safe_output, language="text")
