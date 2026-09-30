@@ -1,19 +1,19 @@
 import re
+import sys
 import spacy
 from typing import Tuple, List, Dict
 
-# Safe loading strategy for Streamlit Cloud
-nlp = None
+# Guaranteed loading strategy for Streamlit Cloud
 try:
     nlp = spacy.load("en_core_web_sm")
-except Exception:
-    try:
-        from spacy.cli import download
-        download("en_core_web_sm")
-        nlp = spacy.load("en_core_web_sm")
-    except Exception as e:
-        print(f"Warning: spaCy NER model failed to load ({e}). Falling back to pure Regex mode.")
-        nlp = None
+except OSError:
+    # Auto-download on app boot if missing
+    from spacy.cli import download
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
+except Exception as e:
+    print(f"Warning: spaCy failed to load: {e}")
+    nlp = None
 
 # Comprehensive Production Regex Suite
 REGEX_PATTERNS: Dict[str, str] = {
@@ -30,7 +30,7 @@ REGEX_PATTERNS: Dict[str, str] = {
     "PAN_CARD": r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b',
     "AADHAAR": r'\b[2-9]{1}\d{3}[-\s]?\d{4}[-\s]?\d{4}\b',
 
-    # Secrets & API Keys
+    # Secrets, API Keys & Tech Leaks
     "AWS_KEY": r'\b(AKIA|ASIA)[0-9A-Z]{16}\b',
     "API_KEY": r'(?i)(api[_-]?key|secret|bearer)\s*[:=]\s*["\']?[a-zA-Z0-9_\-]{16,}["\']?',
     "JWT_TOKEN": r'\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b',
