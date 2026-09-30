@@ -89,8 +89,7 @@ if run_btn:
                 st.markdown(f"**Sanitized Output (Post-Scrub):**\n`{sanitized_text}`")
                 
                 if pii_detected:
-                    st.warning(f"⚠ Scrubbed **{lane1_meta.get('redaction_count', 0)}** sensitive entities.")
-                    st.json(lane1_meta.get('detected_entities', []))
+                    st.warning(f"⚠ Scrubbed **{lane1_meta.get('redaction_count', 0)}** sensitive entities successfully.")
                 else:
                     st.success("✅ Lane 1 Passed: No hardcoded PII/financial regex patterns matched.")
             
