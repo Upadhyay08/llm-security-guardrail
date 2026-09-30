@@ -167,7 +167,7 @@ def layer2_check_similarity(text: str):
 
 
 # ==========================================
-# LAYER 3: Dynamic Gemini Inspector (Fixed Paths)
+# LAYER 3: Dynamic Model Discovery Gemini Inspector
 # ==========================================
 def layer3_analyze_semantic_intent(prompt: str):
     gemini_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
@@ -185,15 +185,6 @@ def layer3_analyze_semantic_intent(prompt: str):
     if not gemini_key:
         return run_local_fallback(prompt)
 
-    # Adding explicit 'models/' namespace prefix to prevent 404 errors
-    CANDIDATE_MODELS = [
-        "models/gemini-1.5-flash",
-        "models/gemini-1.5-pro",
-        "models/gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
-    ]
-
     try:
         import google.generativeai as genai
         genai.configure(api_key=gemini_key.strip())
@@ -209,8 +200,25 @@ def layer3_analyze_semantic_intent(prompt: str):
         
         Prompt to analyze: """ + prompt
 
+        # 1. Fetch available models for your active API key automatically
+        available_models = [
+            m.name for m in genai.list_models()
+            if 'generateContent' in m.supported_generation_methods
+        ]
+
+        if not available_models:
+            st.warning("⚠️ No active generation models associated with this API key.")
+            return run_local_fallback(prompt)
+
+        # 2. Prioritize flash models for low latency
+        preferred_models = sorted(
+            available_models,
+            key=lambda name: (0 if "flash" in name else 1, 0 if "1.5" in name else 1)
+        )
+
+        # 3. Dynamic execution on working model
         last_error = None
-        for model_name in CANDIDATE_MODELS:
+        for model_name in preferred_models:
             try:
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(
@@ -222,7 +230,7 @@ def layer3_analyze_semantic_intent(prompt: str):
                 last_error = err
                 continue
 
-        st.warning(f"All Gemini models failed ({last_error}). Falling back to heuristic check.")
+        st.warning(f"All dynamic models failed ({last_error}). Falling back to heuristic check.")
         return run_local_fallback(prompt)
 
     except Exception as e:
@@ -269,10 +277,10 @@ with st.sidebar:
     st.markdown("✅ **Layer 4:** Input & RAG Sanitizer")
     st.markdown("✅ **Layer 1:** PII/PHI Redaction Engine")
     st.markdown("✅ **Layer 2:** TF-IDF Cosine Matcher")
-    st.markdown("✅ **Layer 3:** Gemini Intent Inspector (Fixed Namespace)")
+    st.markdown("✅ **Layer 3:** Dynamic Discovery Gemini Inspector")
     st.markdown("✅ **Layer 5:** Output Leak Guardrail")
     st.markdown("---")
-    st.caption("Version 3.2.0 | Namespace Fixed Edition")
+    st.caption("Version 4.0.0 | Dynamic Discovery Edition")
 
 
 # ==========================================
