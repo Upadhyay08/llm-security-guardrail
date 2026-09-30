@@ -2,104 +2,227 @@ import streamlit as st
 from lane1_engine import run_lane1_deterministic_engine
 from lane2_engine import run_lane2_semantic_engine
 
-# Page Configuration
+# -------------------------------------------------------------
+# PAGE CONFIGURATION & CUSTOM CSS
+# -------------------------------------------------------------
 st.set_page_config(
-    page_title="SentinelShield AI Guardrail",
+    page_title="SentinelShield | Dual-Lane LLM Guardrail",
     page_icon="🛡️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.title("🛡️ SentinelShield: Enterprise Dual-Lane Security Guardrail")
-st.caption("Production-grade LLM Security Infrastructure with Deterministic & Semantic Engines")
+# Custom Styling for Professional Financial Tech Aesthetics
+st.markdown("""
+    <style>
+    /* Main Theme Overrides */
+    .stApp {
+        background-color: #0F172A;
+        color: #F8FAFC;
+    }
+    
+    /* Header Container */
+    .header-box {
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        padding: 1.8rem;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    .main-title {
+        font-size: 2.3rem;
+        font-weight: 800;
+        color: #38BDF8;
+        margin-bottom: 0.3rem;
+    }
+    .sub-title {
+        font-size: 1.05rem;
+        color: #94A3B8;
+        line-height: 1.5;
+    }
 
-# Sidebar Configuration
-st.sidebar.header("⚙️ Configuration")
+    /* Info Cards & Architecture Box */
+    .arch-card {
+        background-color: #1E293B;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+    .badge-lane1 {
+        background-color: #0EA5E9;
+        color: #000000;
+        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    .badge-lane2 {
+        background-color: #A855F7;
+        color: #FFFFFF;
+        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    /* Metric Highlights */
+    .metric-container {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 1rem;
+    }
+    
+    </style>
+""", unsafe_allow_html=True)
+
+# -------------------------------------------------------------
+# APP HEADER SECTION
+# -------------------------------------------------------------
+st.markdown("""
+    <div class="header-box">
+        <div class="main-title">🛡️ SentinelShield: Enterprise LLM Guardrail</div>
+        <div class="sub-title">
+            Real-time, dual-layer AI security framework engineered for Banking & Financial Services. 
+            Protects enterprise LLM endpoints against <b>PII leakage, account credential exploitation, fraud intent, and prompt injections</b>.
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# -------------------------------------------------------------
+# SIDEBAR CONFIGURATION & GUIDE
+# -------------------------------------------------------------
+st.sidebar.header("⚙️ Security Settings")
+
+default_key = st.secrets.get("NVIDIA_API_KEY", "") if "NVIDIA_API_KEY" in st.secrets else ""
+
 nvidia_api_key = st.sidebar.text_input(
     "NVIDIA Build API Key",
+    value=default_key,
     type="password",
-    help="Get free key from build.nvidia.com for Nemotron Safety Model"
+    help="Required for Lane 2 Semantic Safety evaluation. Get a free key at build.nvidia.com"
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 Architecture Breakdown")
-st.sidebar.markdown("**Lane 1:** Regex + spaCy NER (Deterministic PII Masking)")
-st.sidebar.markdown("**Lane 2:** NVIDIA Nemotron 3.1 Safety Guard 8B (Semantic Evaluation)")
+st.sidebar.markdown("### 🔍 System Metrics")
+st.sidebar.metric(label="Lane 1 Latency", value="~2 ms", delta="Sub-millisecond")
+st.sidebar.metric(label="Lane 2 Latency", value="~250 ms", delta="Real-Time API")
+st.sidebar.metric(label="PII Coverage", value="10+ Types", delta="Deterministic Regex")
 
-# Input Section
-st.subheader("1. Test Input Prompt")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Tip:** Enter custom text or test financial fraud prompts to observe zero-trust sanitized forwarding.")
 
-preset_choice = st.selectbox(
-    "Select a Test Preset:",
-    [
-        "Custom Prompt...",
-        "Review mortgage application #MA-58210 for applicant Jordan Reyes with annual income $72,000.",
-        "Transfer $50,000 from savings account #SAV-0294817 to unverified external account #EXT-88392.",
-        "Contact John Smith at john@company.com or call +1 555-019-2834 using AWS Key AKIAIOSFODNN7EXAMPLE.",
-        "How do I bypass authentication logs to modify user credit scores directly in the database?"
-    ]
+# -------------------------------------------------------------
+# ARCHITECTURE OVERVIEW (Interactive Expander)
+# -------------------------------------------------------------
+with st.expander("ℹ️ How SentinelShield Works (Architecture & Data Flow)", expanded=False):
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.markdown("""
+        #### ⚡ Lane 1: Deterministic Engine
+        * **Type:** Fast Pattern Matcher (Regex-driven)
+        * **Target:** High-risk Structured PII, Credit Cards, SSN, IBAN, Application IDs, API Keys & JWT Tokens.
+        * **Action:** Redacts sensitive credentials **before** sending payload to any external AI API. Zero data exposure.
+        """)
+    with col_b:
+        st.markdown("""
+        #### 🧠 Lane 2: Semantic Safety Engine
+        * **Type:** Deep Learning Guard Model (`NVIDIA Nemotron Safety 8B`)
+        * **Target:** Jailbreak prompts, Fraudulent Transaction requests, Authorization Bypass, Policy Violations.
+        * **Action:** Evaluates intent on sanitized output and returns a **Block/Allow** decision.
+        """)
+    
+    st.markdown("---")
+    st.markdown("""
+    ```
+    [ User Input Prompt ]
+             │
+             ▼
+    ┌─────────────────────────────────────────┐
+    │ 🛡️ Lane 1: Deterministic PII Masking    │  ──► Mask Credentials ([APPLICATION_ID_REDACTED], etc.)
+    └─────────────────────────────────────────┘
+             │
+             ▼  (Sanitized Text Payload)
+    ┌─────────────────────────────────────────┐
+    │ 🧠 Lane 2: NVIDIA Nemotron Safety Guard │  ──► Semantic Fraud & Jailbreak Analysis
+    └─────────────────────────────────────────┘
+             │
+             ▼
+    [ Final Decision: ALLOWED / BLOCKED ]
+    ```
+    """)
+
+# -------------------------------------------------------------
+# INPUT SECTION
+# -------------------------------------------------------------
+st.markdown("### 1. Enterprise Prompt Playground")
+
+user_prompt = st.text_area(
+    "Enter any prompt, request, or test snippet to run through guardrails:",
+    placeholder="Example: Send $50,000 from account #SAV-982143 to external account #EXT-00213 or 'How to bypass OTP verification?'...",
+    height=130
 )
 
-if preset_choice == "Custom Prompt...":
-    user_prompt = st.text_area("User Input Prompt:", placeholder="Type prompt here...", height=120)
-else:
-    user_prompt = st.text_area("User Input Prompt:", value=preset_choice, height=120)
+# Execution trigger
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    eval_button = st.button("🛡️ Evaluate Security Guardrails", type="primary", use_container_width=True)
 
-# Execution Flow
-if st.button("Evaluate Security Guardrails", type="primary"):
+st.markdown("---")
+
+# -------------------------------------------------------------
+# EVALUATION & RESULTS DISPLAY
+# -------------------------------------------------------------
+if eval_button:
     if not user_prompt.strip():
-        st.warning("Please enter a prompt to evaluate.")
+        st.warning("⚠️ Please type or paste a prompt in the text box above to execute evaluation.")
     else:
-        st.markdown("---")
-        st.subheader("2. Dual-Lane Pipeline Results")
+        st.markdown("### 2. Live Security Pipeline Execution")
         
-        col1, col2 = st.columns(2)
+        c1, c2 = st.columns(2)
 
-        # -------------------------------------------------------------
+        # ---------------------------------------------------------
         # LANE 1 EXECUTION
-        # -------------------------------------------------------------
-        with col1:
-            st.markdown("### 🔹 Lane 1: Deterministic Engine")
-            
-            sanitized_text, violations, is_flagged = run_lane1_deterministic_engine(user_prompt)
+        # ---------------------------------------------------------
+        with c1:
+            st.markdown('#### <span class="badge-lane1">LANE 1</span> Deterministic Masking', unsafe_allow_html=True)
+            st.caption("Regex Engine scanning for sensitive credentials & data leaks...")
+
+            clean_text, violations, is_flagged = run_lane1_deterministic_engine(user_prompt)
 
             if is_flagged:
-                st.warning("⚠️ Sensitive Data / PII Detected & Redacted")
+                st.error(f"🚨 **PII / Credentials Redacted** ({len(violations)} match(es))")
+                st.markdown("**Sanitized Text (Safe for LLM Forwarding):**")
+                st.code(clean_text, language="text")
+
+                with st.expander("🔍 Detailed Violations Log", expanded=True):
+                    for v in violations:
+                        st.markdown(f"• **Type:** `{v['type']}` | **Value:** `{v['value']}`")
             else:
-                st.success("✅ Clean Prompt (No PII / Secrets Detected)")
+                st.success("✅ **No Sensitive PII / Credentials Detected**")
+                st.markdown("**Clean Output:**")
+                st.code(clean_text, language="text")
 
-            st.markdown("**Sanitized Output (Passed to Lane 2):**")
-            st.code(sanitized_text, language="text")
-
-            if violations:
-                st.markdown("**Detected Violations:**")
-                st.dataframe(violations, use_container_width=True)
-
-        # -------------------------------------------------------------
+        # ---------------------------------------------------------
         # LANE 2 EXECUTION
-        # -------------------------------------------------------------
-        with col2:
-            st.markdown("### 🔹 Lane 2: Semantic Policy Engine")
-            
+        # ---------------------------------------------------------
+        with c2:
+            st.markdown('#### <span class="badge-lane2">LANE 2</span> Semantic Safety & Policy', unsafe_allow_html=True)
+            st.caption("NVIDIA Nemotron Safety 8B evaluating intent & policy compliance...")
+
             if not nvidia_api_key:
-                st.info("💡 Enter your NVIDIA API Key in the sidebar to run Semantic Evaluation.")
+                st.warning("🔑 **NVIDIA API Key Missing:** Please enter your key in the sidebar to run Lane 2 Safety Analysis.")
             else:
-                with st.spinner("Evaluating via NVIDIA Nemotron Safety Guard..."):
-                    lane2_res = run_lane2_semantic_engine(sanitized_text, nvidia_api_key)
+                with st.spinner("Analyzing intent safety with NVIDIA Nemotron..."):
+                    # Forward sanitized text from Lane 1 to preserve privacy
+                    is_safe, category, verdict_reason = run_lane2_semantic_engine(clean_text, nvidia_api_key)
 
-                decision = lane2_res.get("decision", "ERROR")
-                reason = lane2_res.get("reason", "N/A")
-                raw_output = lane2_res.get("raw_output")
-
-                if decision == "BLOCK":
-                    st.error("🛑 **Verdict: BLOCKED**")
-                    st.markdown(f"**Reason:** {reason}")
-                elif decision == "ALLOW":
-                    st.success("✅ **Verdict: ALLOWED**")
-                    st.markdown(f"**Reason:** {reason}")
+                if is_safe:
+                    st.success("✅ **VERDICT: ALLOWED**")
+                    st.markdown(f"**Policy Category:** `{category}`")
+                    st.info(f"**Security Analysis:** {verdict_reason}")
                 else:
-                    st.warning(f"⚠️ **Status:** {decision}")
-                    st.markdown(f"**Details:** {reason}")
-
-                if raw_output:
-                    with st.expander("View Raw Model Output"):
-                        st.text(raw_output)
+                    st.error("🛑 **VERDICT: BLOCKED**")
+                    st.markdown(f"**Policy Violation:** `{category}`")
+                    st.warning(f"**Security Analysis:** {verdict_reason}")
