@@ -2,17 +2,20 @@ import re
 import spacy
 from typing import Tuple, List, Dict
 
-# Auto-download spaCy model if missing in Streamlit Cloud environment
+# Safe loading strategy for Streamlit Cloud
+nlp = None
 try:
     nlp = spacy.load("en_core_web_sm")
-except OSError:
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
 except Exception:
-    nlp = None
+    try:
+        from spacy.cli import download
+        download("en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
+    except Exception as e:
+        print(f"Warning: spaCy NER model failed to load ({e}). Falling back to pure Regex mode.")
+        nlp = None
 
-# Comprehensive Production Regex Suite for Structured PII, Banking Identifiers & Secrets
+# Comprehensive Production Regex Suite
 REGEX_PATTERNS: Dict[str, str] = {
     # Financial & Application Identifiers
     "APPLICATION_ID": r'#(?:MA|SAV|EXT|LOAN|ACC|CHK)-\d{4,8}\b',
@@ -27,15 +30,13 @@ REGEX_PATTERNS: Dict[str, str] = {
     "PAN_CARD": r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b',
     "AADHAAR": r'\b[2-9]{1}\d{3}[-\s]?\d{4}[-\s]?\d{4}\b',
 
-    # Secrets, API Keys & Tech Leaks
+    # Secrets & API Keys
     "AWS_KEY": r'\b(AKIA|ASIA)[0-9A-Z]{16}\b',
     "API_KEY": r'(?i)(api[_-]?key|secret|bearer)\s*[:=]\s*["\']?[a-zA-Z0-9_\-]{16,}["\']?',
     "JWT_TOKEN": r'\beyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\b',
 }
 
-
 def run_regex_redaction(text: str) -> Tuple[str, List[Dict[str, str]]]:
-    """Handles structured PII, Financial IDs, and Cloud Secrets via Regex matching."""
     sanitized_text = text
     detected_violations = []
 
@@ -53,9 +54,7 @@ def run_regex_redaction(text: str) -> Tuple[str, List[Dict[str, str]]]:
 
     return sanitized_text, detected_violations
 
-
 def run_ner_redaction(text: str) -> Tuple[str, List[Dict[str, str]]]:
-    """Handles unstructured PII (Names, Companies, Locations) via spaCy Named Entity Recognition."""
     sanitized_text = text
     detected_violations = []
 
@@ -63,8 +62,6 @@ def run_ner_redaction(text: str) -> Tuple[str, List[Dict[str, str]]]:
         return sanitized_text, detected_violations
 
     doc = nlp(sanitized_text)
-    
-    # Reverse order replacement to avoid character position displacement during string slicing
     for ent in sorted(doc.ents, key=lambda x: x.start_char, reverse=True):
         if ent.label_ in ["PERSON", "ORG", "GPE", "LOC"]:
             detected_violations.append({
@@ -81,51 +78,8 @@ def run_ner_redaction(text: str) -> Tuple[str, List[Dict[str, str]]]:
 
     return sanitized_text, detected_violations
 
-
 def run_lane1_deterministic_engine(text: str) -> Tuple[str, List[Dict[str, str]], bool]:
-    """
-    Main Lane 1 Entrypoint: Runs sequential Regex + spaCy NER filtering.
-    Returns: (sanitized_text, list_of_violations, is_flagged)
-    """
-    # Step 1: Execute Regex Subscriptions
     text_after_regex, regex_violations = run_regex_redaction(text)
-    
-    # Step 2: Execute spaCy NER Entity Masking
     final_sanitized_text, ner_violations = run_ner_redaction(text_after_regex)
-
     all_violations = regex_violations + ner_violations
-    is_flagged = len(all_violations) > 0
-
-    return final_sanitized_text, all_violations, is_flagged
-
-
-# Multi-Prompt Test Execution Suite
-if __name__ == "__main__":
-    test_prompts = [
-        "I'm reviewing mortgage application #MA-58210 for applicant Jordan Reyes: annual income $72,000, credit score 640.",
-        "Send $25,000 from savings account #SAV-0294817 (customer: Marjorie Tenley) to external account #EXT-7734021.",
-        "Contact John Smith at john.smith@company.com or call +1 555-019-2834. Access key: AKIAIOSFODNN7EXAMPLE.",
-        "Please update KYC details for Ramesh Kumar. PAN Card: ABCDE1234F and Aadhaar: 9876 5432 1098.",
-        "Review these recent transactions and identify which ones are most likely fraudulent. Explain the signals."
-    ]
-
-    print("========================================================================")
-    print("🛡️️ SENTINELSHIELD: LANE 1 DETERMINISTIC ENGINE TEST SUITE")
-    print("========================================================================\n")
-
-    for idx, prompt in enumerate(test_prompts, 1):
-        clean_text, violations, is_blocked = run_lane1_deterministic_engine(prompt)
-        
-        print(f"--- TEST CASE {idx} ---")
-        print(f"Original:  {prompt}")
-        print(f"Sanitized: {clean_text}")
-        print(f"Flagged:   {is_blocked}")
-        
-        if violations:
-            print("Detections:")
-            for v in violations:
-                print(f"  • [{v['engine']}] {v['type']}: {v['value']}")
-        else:
-            print("Detections: None (Clean Prompt)")
-            
-        print("-" * 72 + "\n")
+    return final_sanitized_text, all_violations, len(all_violations) > 0
