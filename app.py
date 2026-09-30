@@ -75,11 +75,20 @@ MALICIOUS_PATTERNS = [
 
 
 # ==========================================
-# LAYER 4: RAG, Unicode & Base64 Sanitizer
+# LAYER 4 (UPGRADED): RAG, Indirect Injection & Unicode Sanitizer
 # ==========================================
+INDIRECT_INJECTION_PATTERNS = [
+    r'ignore\s+all\s+previous\s+instructions',
+    r'system\s*:\s*override',
+    r'you\s+are\s+now\s+a\s+unfiltered',
+    r'dump\s+system\s+prompt',
+    r'new\s+system\s+directive'
+]
+
 def sanitize_rag_and_unicode(text: str):
     modified = False
-    
+
+    # 1. Strip HTML/Script tags
     if "<" in text and ">" in text:
         try:
             soup = BeautifulSoup(text, "html.parser")
@@ -90,6 +99,13 @@ def sanitize_rag_and_unicode(text: str):
         except Exception:
             pass
 
+    # 2. Indirect Prompt Injection Signatures check
+    for pattern in INDIRECT_INJECTION_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            text = re.sub(pattern, '[INDIRECT_INJECTION_BLOCKED]', text, flags=re.IGNORECASE)
+            modified = True
+
+    # 3. Unicode Normalization & Hidden Zero-Width Characters removal
     normalized_text = unicodedata.normalize('NFKD', text)
     cleaned_text = "".join([c for c in normalized_text if not unicodedata.combining(c)])
     cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
@@ -97,6 +113,7 @@ def sanitize_rag_and_unicode(text: str):
         modified = True
         text = cleaned_text
 
+    # 4. Base64 Payload Detection & Decoding
     base64_pattern = r'[A-Za-z0-9+/]{20,}={0,2}'
     matches = re.findall(base64_pattern, text)
     decoded_snippets = []
@@ -112,7 +129,10 @@ def sanitize_rag_and_unicode(text: str):
         text += "\n[Decoded Payload]: " + " ".join(decoded_snippets)
         modified = True
 
-    return text, modified
+    # 5. Framing Delimiters to isolate untrusted context
+    formatted_data = f"<external_untrusted_data>\n{text}\n</external_untrusted_data>"
+
+    return formatted_data, modified
 
 
 # ==========================================
@@ -200,7 +220,6 @@ def layer3_analyze_semantic_intent(prompt: str):
         
         Prompt to analyze: """ + prompt
 
-        # 1. Fetch available models for your active API key automatically
         available_models = [
             m.name for m in genai.list_models()
             if 'generateContent' in m.supported_generation_methods
@@ -210,13 +229,11 @@ def layer3_analyze_semantic_intent(prompt: str):
             st.warning("⚠️ No active generation models associated with this API key.")
             return run_local_fallback(prompt)
 
-        # 2. Prioritize flash models for low latency
         preferred_models = sorted(
             available_models,
             key=lambda name: (0 if "flash" in name else 1, 0 if "1.5" in name else 1)
         )
 
-        # 3. Dynamic execution on working model
         last_error = None
         for model_name in preferred_models:
             try:
@@ -274,13 +291,13 @@ with st.sidebar:
         st.warning("🟠 Running on Fallback Heuristics")
         
     st.markdown("### ⚙️ Pipeline Layers")
-    st.markdown("✅ **Layer 4:** Input & RAG Sanitizer")
+    st.markdown("✅ **Layer 4:** RAG & Indirect Injection Defense")
     st.markdown("✅ **Layer 1:** PII/PHI Redaction Engine")
     st.markdown("✅ **Layer 2:** TF-IDF Cosine Matcher")
     st.markdown("✅ **Layer 3:** Dynamic Discovery Gemini Inspector")
     st.markdown("✅ **Layer 5:** Output Leak Guardrail")
     st.markdown("---")
-    st.caption("Version 4.0.0 | Dynamic Discovery Edition")
+    st.caption("Version 4.1.0 | Anti-Indirect Injection")
 
 
 # ==========================================
@@ -315,7 +332,7 @@ if inspect_btn:
         # --- LAYER 4 ---
         sanitized_input, was_modified = sanitize_rag_and_unicode(user_input)
         if was_modified:
-            st.info("ℹ **Layer 4 Action:** Cleaned hidden HTML tags, zero-width unicode, or decoded Base64 strings.")
+            st.info("ℹ **Layer 4 Action:** Cleaned hidden tags, neutralized indirect injection keywords, or framed external data.")
 
         # --- LAYER 1 ---
         clean_text, pii_detected = layer1_redact_pii_phi(sanitized_input)
