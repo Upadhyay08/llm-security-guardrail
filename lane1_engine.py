@@ -1,19 +1,25 @@
 import re
 import logging
-import spacy
 
 # Configure structured logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Dynamic SpaCy Model Loading with Startup Fallback
+# ----------------------------------------------------------------------
+# DYNAMIC SPACY MODEL LOADING WITH AUTOMATED STARTUP DOWNLOAD
+# ----------------------------------------------------------------------
 try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    logger.info("Downloading en_core_web_sm model on startup...")
-    from spacy.cli import download
-    download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+    import spacy
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except OSError:
+        logger.info("Downloading 'en_core_web_sm' model on startup...")
+        from spacy.cli import download
+        download("en_core_web_sm")
+        nlp = spacy.load("en_core_web_sm")
+except ImportError:
+    logger.warning("spaCy module not installed. Running in fallback regex mode.")
+    nlp = None
 
 
 def run_lane1_deterministic_engine(text: str = "") -> tuple[str, bool, dict]:
@@ -32,10 +38,9 @@ def run_lane1_deterministic_engine(text: str = "") -> tuple[str, bool, dict]:
             - has_pii (bool): True if PII or sensitive patterns were detected and scrubbed.
             - metadata (dict): Diagnostics containing lists of detected entity types.
     """
-    # Defensive Input Validation
     if not text or not text.strip():
         logger.info("Lane 1 Engine: Empty query string received.")
-        return text, False, {"detected_entities": []}
+        return text, False, {"detected_entities": [], "redaction_count": 0}
 
     try:
         redacted_text = text
@@ -44,19 +49,20 @@ def run_lane1_deterministic_engine(text: str = "") -> tuple[str, bool, dict]:
         # ----------------------------------------------------------------------
         # 1. DYNAMIC NAMED ENTITY RECOGNITION (NER REDACTION)
         # ----------------------------------------------------------------------
-        doc = nlp(text)
-        target_labels = {"PERSON", "MONEY", "GPE", "DATE", "ORG"}
+        if nlp is not None:
+            doc = nlp(text)
+            target_labels = {"PERSON", "MONEY", "GPE", "DATE", "ORG"}
 
-        # Process entities in reverse character offset order to maintain correct string slicing
-        for ent in sorted(doc.ents, key=lambda x: x.start_char, reverse=True):
-            if ent.label_ in target_labels:
-                entities_detected.append((ent.text, ent.label_))
-                start, end = ent.start_char, ent.end_char
-                redacted_text = (
-                    redacted_text[:start]
-                    + f"[{ent.label_}_REDACTED]"
-                    + redacted_text[end:]
-                )
+            # Process entities in reverse character offset order to maintain correct string slicing
+            for ent in sorted(doc.ents, key=lambda x: x.start_char, reverse=True):
+                if ent.label_ in target_labels:
+                    entities_detected.append((ent.text, ent.label_))
+                    start, end = ent.start_char, ent.end_char
+                    redacted_text = (
+                        redacted_text[:start]
+                        + f"[{ent.label_}_REDACTED]"
+                        + redacted_text[end:]
+                    )
 
         # ----------------------------------------------------------------------
         # 2. BASELINE PATTERN REGEX FALLBACK (STRUCTURED IDENTIFIERS)
@@ -65,15 +71,18 @@ def run_lane1_deterministic_engine(text: str = "") -> tuple[str, bool, dict]:
             "SSN_REDACTED": r"\b\d{3}-\d{2}-\d{4}\b",
             "PAN_REDACTED": r"\b[A-Z]{5}\d{4}[A-Z]{1}\b",
             "AADHAAR_REDACTED": r"\b\d{4}\s?\d{4}\s?\d{4}\b",
-            "ZIP_CODE_REDACTED": r"\bZIP\s+code\s+\d{5}\b",
-            "MORTGAGE_ID_REDACTED": r"\b#?MA-\d{4,6}\b"
+            "ZIP_CODE_REDACTED": r"\b\d{5}(?:-\d{4})?\b",
+            "MORTGAGE_ID_REDACTED": r"\b#?MA-\d{4,6}\b",
+            "INCOME_REDACTED": r"\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b"
         }
 
         for label, pattern in baseline_patterns.items():
             if re.search(pattern, redacted_text, re.IGNORECASE):
                 matches = re.findall(pattern, redacted_text, re.IGNORECASE)
                 for match in matches:
-                    entities_detected.append((match, label))
+                    # Avoid duplicate logging if already scrubbed by NER
+                    if match not in [e[0] for e in entities_detected]:
+                        entities_detected.append((match, label))
                 redacted_text = re.sub(
                     pattern, f"[{label}]", redacted_text, flags=re.IGNORECASE
                 )
@@ -89,12 +98,11 @@ def run_lane1_deterministic_engine(text: str = "") -> tuple[str, bool, dict]:
 
     except Exception as e:
         logger.error(f"Lane 1 Processing Failure: {str(e)}")
-        # Safe fallback returning unparsed string and error metadata
-        return text, False, {"error": str(e), "detected_entities": []}
+        return text, False, {"error": str(e), "detected_entities": [], "redaction_count": 0}
 
 
 if __name__ == "__main__":
-    # Standard verification execution
+    # Sample verification prompt
     sample_prompt = (
         "I'm reviewing mortgage application #MA-58210 for applicant Jordan Reyes: "
         "annual income $72,000, credit score 640, ZIP code 48212, and 3 years at current employer."
