@@ -167,7 +167,7 @@ def layer2_check_similarity(text: str):
 
 
 # ==========================================
-# LAYER 3: Dynamic Auto-Fallback Gemini Inspector
+# LAYER 3: Dynamic Gemini Inspector (Fixed Paths)
 # ==========================================
 def layer3_analyze_semantic_intent(prompt: str):
     gemini_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
@@ -185,13 +185,13 @@ def layer3_analyze_semantic_intent(prompt: str):
     if not gemini_key:
         return run_local_fallback(prompt)
 
+    # Adding explicit 'models/' namespace prefix to prevent 404 errors
     CANDIDATE_MODELS = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
+        "models/gemini-1.5-flash",
+        "models/gemini-1.5-pro",
+        "models/gemini-2.0-flash",
         "gemini-1.5-flash",
-        "gemini-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-1.5-pro"
     ]
 
     try:
@@ -269,10 +269,10 @@ with st.sidebar:
     st.markdown("✅ **Layer 4:** Input & RAG Sanitizer")
     st.markdown("✅ **Layer 1:** PII/PHI Redaction Engine")
     st.markdown("✅ **Layer 2:** TF-IDF Cosine Matcher")
-    st.markdown("✅ **Layer 3:** Multi-Model Gemini Inspector")
+    st.markdown("✅ **Layer 3:** Gemini Intent Inspector (Fixed Namespace)")
     st.markdown("✅ **Layer 5:** Output Leak Guardrail")
     st.markdown("---")
-    st.caption("Version 3.1.0 | Auto-Fallback Edition")
+    st.caption("Version 3.2.0 | Namespace Fixed Edition")
 
 
 # ==========================================
