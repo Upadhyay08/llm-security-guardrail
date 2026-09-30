@@ -2,6 +2,7 @@ import streamlit as st
 from lane1_engine import run_lane1_deterministic_engine
 from lane2_engine import run_lane2_semantic_engine
 
+# Page Configuration
 st.set_page_config(
     page_title="Enterprise LLM Security Guardrail",
     page_icon="🛡️",
@@ -71,7 +72,7 @@ if st.button("Run Security Evaluation", type="primary"):
             st.code(sanitized_text, language="text")
             
         if pii_detected:
-            st.info(f"ℹ️ Sensitive pattern match found. Redactions applied using `[POLICY_REDACTED]` tokens.")
+            st.info("ℹ️️ Sensitive pattern match found. Redactions applied using `[POLICY_REDACTED]` tokens.")
         else:
             st.caption("No deterministic PII or financial patterns flagged in Lane 1.")
 
@@ -83,7 +84,7 @@ if st.button("Run Security Evaluation", type="primary"):
         st.markdown("### 🧠 Lane 2: Semantic Safety & Policy Engine (NVIDIA Nemotron)")
         
         with st.spinner("Analyzing intent safety with NVIDIA Nemotron..."):
-            # Unpack 4 values: (is_safe, category, verdict_reason, action_status)
+            # Pass sanitized_text positional argument & unpack 4 values:
             is_safe, category, verdict_reason, action_status = run_lane2_semantic_engine(sanitized_text)
 
         # Action Verdict Banner
