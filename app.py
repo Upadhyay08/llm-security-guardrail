@@ -10,13 +10,13 @@ st.set_page_config(
 )
 
 st.title("🛡️ Enterprise LLM Security Guardrail Application")
-st.markdown("Multi-layered security pipeline detecting deterministic violations (Lane 1) and evaluating semantic intent safety via OpenAI (Lane 2).")
+st.markdown("Multi-layered security pipeline detecting deterministic PII (Lane 1) and evaluating semantic intent safety via OpenAI (Lane 2).")
 st.markdown("---")
 
 # User Input Section
 user_prompt = st.text_area(
     "Enter Prompt to Evaluate:",
-    placeholder="Type your prompt here (e.g., ransomware script, wire transfer request, or a safe educational question)...",
+    placeholder="Type your prompt here (e.g., mortgage application with PII, ransomware script, or safe query)...",
     height=120
 )
 
@@ -26,25 +26,26 @@ if st.button("Run Security Pipeline", type="primary"):
     else:
         with st.spinner("Executing multi-layered guardrail pipeline..."):
             
-            # --- Lane 1 Execution ---
-            l1_passed, l1_code, l1_msg, l1_status = run_lane1_deterministic_engine(user_prompt)
+            # --- Lane 1 Execution (Matches the new 3-value return signature) ---
+            sanitized_text, pii_detected, lane1_meta = run_lane1_deterministic_engine(user_prompt)
             
             st.markdown("---")
-            st.subheader("🔍 Lane 1: Deterministic Engine")
+            st.subheader("🔍 Lane 1: Deterministic Engine & PII Redaction")
             st.markdown(f"**Original Prompt:**\n\n`{user_prompt}`")
+            st.markdown(f"**Sanitized Text (Post-Redaction):**\n\n`{sanitized_text}`")
             
-            if not l1_passed:
-                st.error(f"🛑 VERDICT: BLOCKED\n\n**Policy Category:** {l1_code}\n\n**Diagnostic:** {l1_msg}")
+            if pii_detected:
+                st.info(f"ℹ️ Lane 1 scrubbed {lane1_meta.get('redaction_count', 0)} sensitive entities (PII/Financial).")
             else:
                 st.success("✅ Lane 1 Passed (No deterministic PII or financial patterns matched).")
                 
-                # --- Lane 2 Execution ---
-                l2_passed, l2_code, l2_msg, l2_status = run_lane2_semantic_engine(user_prompt)
-                
-                st.markdown("---")
-                st.subheader("🧠 Lane 2: Semantic Safety & Policy Engine (OpenAI GPT-4o-mini)")
-                
-                if l2_status == "BLOCKED":
-                    st.error(f"🛑 VERDICT: BLOCKED\n\n**Policy Category:** {l2_code}\n\n**Security Diagnostic & Risk Analysis:**\n{l2_msg}")
-                else:
-                    st.success(f"✅ VERDICT: ALLOWED\n\n**Policy Category:** {l2_code}\n\n**Security Diagnostic & Risk Analysis:**\n{l2_msg}")
+            # --- Lane 2 Execution (Using Sanitized Text) ---
+            l2_passed, l2_code, l2_msg, l2_status = run_lane2_semantic_engine(sanitized_text)
+            
+            st.markdown("---")
+            st.subheader("🧠 Lane 2: Semantic Safety & Policy Engine (OpenAI GPT-4o-mini)")
+            
+            if l2_status == "BLOCKED":
+                st.error(f"🛑 VERDICT: BLOCKED\n\n**Policy Category:** {l2_code}\n\n**Security Diagnostic & Risk Analysis:**\n{l2_msg}")
+            else:
+                st.success(f"✅ VERDICT: ALLOWED\n\n**Policy Category:** {l2_code}\n\n**Security Diagnostic & Risk Analysis:**\n{l2_msg}")
