@@ -8,21 +8,43 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🛡️ Enterprise LLM Security Guardrail Application")
+# Custom Styling
 st.markdown(
-    "Multi-layered security pipeline detecting PII/Financial data violations (Lane 1) "
-    "and evaluating semantic intent safety (Lane 2)."
+    """
+    <style>
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #38BDF8;
+        margin-bottom: 0.3rem;
+    }
+    .sub-title {
+        font-size: 1.05rem;
+        color: #94A3B8;
+        margin-bottom: 1.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
+st.markdown('<div class="main-title">🛡️ Enterprise LLM Security Guardrail Application</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="sub-title">Multi-layered security pipeline detecting PII/Financial data violations (Lane 1) '
+    'and evaluating semantic intent safety (Lane 2).</div>',
+    unsafe_allow_html=True
+)
+
+# Sidebar System Status
 st.sidebar.header("System Status")
 st.sidebar.success("Lane 1: Deterministic Engine (Active)")
-st.sidebar.success("Lane 2: NVIDIA Nemotron Semantic Engine (Active)")
+st.sidebar.success("Lane 2: NVIDIA Nemotron Engine (Active)")
 
 # User Input Section
 user_prompt = st.text_area(
     "Enter Prompt to Evaluate:",
     placeholder="Type a query or prompt here...",
-    height=150
+    height=140
 )
 
 if st.button("Run Security Evaluation", type="primary"):
@@ -35,7 +57,9 @@ if st.button("Run Security Evaluation", type="primary"):
         # LANE 1: Deterministic Engine (Regex Redaction)
         # ---------------------------------------------------------
         st.markdown("### 🔍 Lane 1: Deterministic Engine")
-        sanitized_text, pii_detected = run_lane1_deterministic_engine(user_prompt)
+        
+        # Unpack 3 values: (sanitized_text, pii_detected, metadata)
+        sanitized_text, pii_detected, lane1_meta = run_lane1_deterministic_engine(user_prompt)
         
         col1, col2 = st.columns(2)
         with col1:
@@ -47,7 +71,7 @@ if st.button("Run Security Evaluation", type="primary"):
             st.code(sanitized_text, language="text")
             
         if pii_detected:
-            st.info("ℹ️ Sensitive pattern match found. Redactions applied using `[POLICY_REDACTED]` tokens.")
+            st.info(f"ℹ️ Sensitive pattern match found. Redactions applied using `[POLICY_REDACTED]` tokens.")
         else:
             st.caption("No deterministic PII or financial patterns flagged in Lane 1.")
 
@@ -59,7 +83,7 @@ if st.button("Run Security Evaluation", type="primary"):
         st.markdown("### 🧠 Lane 2: Semantic Safety & Policy Engine (NVIDIA Nemotron)")
         
         with st.spinner("Analyzing intent safety with NVIDIA Nemotron..."):
-            # Unpack 4-tuple: (is_safe, category, verdict_reason, action_status)
+            # Unpack 4 values: (is_safe, category, verdict_reason, action_status)
             is_safe, category, verdict_reason, action_status = run_lane2_semantic_engine(sanitized_text)
 
         # Action Verdict Banner
