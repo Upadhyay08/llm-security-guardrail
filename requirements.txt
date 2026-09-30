@@ -2,3 +2,4 @@ streamlit
 scikit-learn
 groq
 beautifulsoup4
+google-generativeai
