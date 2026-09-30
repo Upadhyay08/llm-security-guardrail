@@ -23,11 +23,11 @@ def run_lane2_semantic_engine(sanitized_text: str = "") -> tuple[bool, str, str,
         "Accept": "application/json"
     }
     
-    # 💥 UPDATE: Removed retired 3.1 models. Upgraded to Llama 3.2 and active backups!
+    # 💥 100% ACTIVE NVIDIA MODELS (Llama 3.3 and Mistral - Zero End-of-Life / 410 Errors)
     fallback_models = [
-        "meta/llama-guard-4-12b",       # Primary: Mama's ultimate guardrail
-        "meta/llama-3.2-3b-instruct",   # Backup 1: Latest Llama 3.2 (Super fast)
-        "google/gemma-2-9b-it"          # Backup 2: Rock-solid Google model
+        "meta/llama-3.3-70b-instruct",           # Primary: Ultra-fast, extremely smart reasoning engine
+        "mistralai/mistral-7b-instruct-v0.3",     # Backup 1: Lightweight and instant response
+        "nvidia/nemotron-4-340b-instruct"         # Backup 2: Heavy Enterprise Nemotron
     ]
 
     errors_list = []
@@ -51,8 +51,8 @@ def run_lane2_semantic_engine(sanitized_text: str = "") -> tuple[bool, str, str,
         }
 
         try:
-            # 💥 UPDATE: Increased timeout to 60 seconds to guarantee Llama Guard 4 wakes up.
-            response = requests.post(url, headers=headers, json=payload, timeout=60.0)
+            # 30 seconds timeout is more than enough for active 3.3 models
+            response = requests.post(url, headers=headers, json=payload, timeout=30.0)
             
             if response.status_code == 200:
                 data = response.json()
@@ -70,7 +70,7 @@ def run_lane2_semantic_engine(sanitized_text: str = "") -> tuple[bool, str, str,
                 else:
                     return (True, "SAFE_INTENT", f"Cleared by {model_name}", "ALLOWED")
             else:
-                err = f"{model_name} failed: HTTP {response.status_code} - {response.text}"
+                err = f"{model_name} failed: HTTP {response.status_code}"
                 logger.warning(err)
                 errors_list.append(err)
                 continue 
