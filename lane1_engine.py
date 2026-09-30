@@ -2,8 +2,12 @@ import re
 import spacy
 from typing import Tuple, List, Dict
 
-# Global level load for performance (avoid reloading model per request)
+# Auto-download spaCy model if missing in Streamlit Cloud environment
 try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    from spacy.cli import download
+    download("en_core_web_sm")
     nlp = spacy.load("en_core_web_sm")
 except Exception:
     nlp = None
@@ -98,24 +102,15 @@ def run_lane1_deterministic_engine(text: str) -> Tuple[str, List[Dict[str, str]]
 # Multi-Prompt Test Execution Suite
 if __name__ == "__main__":
     test_prompts = [
-        # Test 1: Mortgage Application + Person Name
         "I'm reviewing mortgage application #MA-58210 for applicant Jordan Reyes: annual income $72,000, credit score 640.",
-        
-        # Test 2: Wire Transfer + Multiple Account Hashtags + Person Name
         "Send $25,000 from savings account #SAV-0294817 (customer: Marjorie Tenley) to external account #EXT-7734021.",
-        
-        # Test 3: Direct PII Request + AWS Cloud Secret
         "Contact John Smith at john.smith@company.com or call +1 555-019-2834. Access key: AKIAIOSFODNN7EXAMPLE.",
-        
-        # Test 4: Indian Context (PAN Card & Aadhaar)
         "Please update KYC details for Ramesh Kumar. PAN Card: ABCDE1234F and Aadhaar: 9876 5432 1098.",
-        
-        # Test 5: Clean Request (No PII / Should Pass Unmodified)
         "Review these recent transactions and identify which ones are most likely fraudulent. Explain the signals."
     ]
 
     print("========================================================================")
-    print("🛡️ SENTINELSHIELD: LANE 1 DETERMINISTIC ENGINE TEST SUITE")
+    print("🛡️️ SENTINELSHIELD: LANE 1 DETERMINISTIC ENGINE TEST SUITE")
     print("========================================================================\n")
 
     for idx, prompt in enumerate(test_prompts, 1):
